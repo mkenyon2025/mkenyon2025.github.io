@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Standard Atmosphere &amp; Saturn V Drag — Michael Kenyon</title>
+<meta name="description" content="A MATLAB standard-atmosphere model chained into a Saturn V drag model, by Michael Kenyon.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2309090b'/%3E%3Ctext x='32' y='42' font-family='Arial,sans-serif' font-size='28' font-weight='700' fill='%23fff' text-anchor='middle'%3EMK%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html">Michael Kenyon</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="index.html#projects">Projects</a></li>
+        <li><a href="#results">Results</a></li>
+        <li><a href="#drag">Drag model</a></li>
+        <li><a href="#code">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="wrap">
+    <a class="back" href="index.html#projects">← Back to all projects</a>
+    <div class="intro page-intro">
+      <p class="eyebrow">Personal project · MATLAB</p>
+      <h1>Standard Atmosphere → Saturn V Drag</h1>
+      <p class="lede">A set of MATLAB functions that build on each other: temperature gives pressure, pressure and temperature give density, and density combined with a Mach-dependent drag coefficient gives drag force at any altitude.</p>
+      <p><span class="tag">ode45</span><span class="tag">Curve fitting</span><span class="tag">Regression</span><span class="tag wip">Drag step in progress</span></p>
+    </div>
+
+    <section aria-labelledby="chain-h">
+      <h2 id="chain-h">How the pieces connect</h2>
+      <ol class="pipeline">
+        <li><h3><code>Temp_Alt(h)</code></h3><p>Piecewise-linear temperature from 0 to 50 km, one linear segment per atmospheric layer.</p></li>
+        <li><h3><code>Press_Alt(h)</code></h3><p>Integrates the hydrostatic equation dP/dh = −Pg/(RT) with <code>ode45</code> from 101,325 Pa at sea level, using <code>Temp_Alt</code> inside the ODE. The solution is solved once, cached and interpolated.</p></li>
+        <li><h3><code>Rho_Alt(h)</code></h3><p>Ideal-gas density, ρ = P/(RT). <code>StdAtm(h)</code> returns temperature, pressure and density together.</p></li>
+        <li><h3><code>Cd_Mach(M)</code></h3><p>Drag coefficient from Mach number, using regressions fit to approximate Saturn V data.</p></li>
+        <li><h3><code>Drag_Of_SaturnV</code></h3><p>Dynamic pressure × Cd × reference area, plotted against Mach.</p></li>
+      </ol>
+    </section>
+
+    <section id="results" aria-labelledby="res-h">
+      <h2 id="res-h">Atmosphere results</h2>
+      <figure>
+        <img src="img/atmosphere.png" width="1047" height="519" alt="Three side-by-side MATLAB plots with altitude from 0 to 50 kilometers on the vertical axis. Temperature falls linearly from 288 K to about 217 K at 11 km, stays constant to 20 km, then rises in segments to about 271 K at 50 km. Pressure and density both decay smoothly from their sea-level values toward zero.">
+        <figcaption>Temperature, pressure and density from 0 to 50 km, produced by <code>StdAtm</code>.</figcaption>
+      </figure>
+      <p class="sec-note">To check the ODE, I compared the model's pressure with standard-atmosphere table values:</p>
+      <div class="table-scroll">
+        <table class="results">
+          <caption class="visually-hidden">Model pressure compared with standard atmosphere table values</caption>
+          <thead><tr><th scope="col">Altitude</th><th scope="col">Temp (K)</th><th scope="col">Pressure, model (Pa)</th><th scope="col">Pressure, table (Pa)</th><th scope="col">Error</th><th scope="col">Density (kg/m³)</th></tr></thead>
+          <tbody>
+            <tr><td>0 km</td><td class="num">288.15</td><td class="num">101,325</td><td class="num">101,325</td><td class="num">—</td><td class="num">1.2250</td></tr>
+            <tr><td>5 km</td><td class="num">255.65</td><td class="num">54,014</td><td class="num">54,020</td><td class="num">0.01%</td><td class="num">0.7360</td></tr>
+            <tr><td>11 km</td><td class="num">216.65</td><td class="num">22,626</td><td class="num">22,632</td><td class="num">0.03%</td><td class="num">0.3638</td></tr>
+            <tr><td>20 km</td><td class="num">216.65</td><td class="num">5,475</td><td class="num">5,474</td><td class="num">0.02%</td><td class="num">0.0880</td></tr>
+            <tr><td>30 km</td><td class="num">226.65</td><td class="num">1,172</td><td class="num">1,180</td><td class="num">0.64%</td><td class="num">0.0180</td></tr>
+            <tr><td>40 km</td><td class="num">250.65</td><td class="num">278</td><td class="num">287</td><td class="num">3.05%</td><td class="num">0.0039</td></tr>
+            <tr><td>50 km</td><td class="num">270.65</td><td class="num">76</td><td class="num">79</td><td class="num">4.13%</td><td class="num">0.0010</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="sec-note">Below 30 km the model matches the table to within 0.65%. Above 30 km the error grows to about 4% at 50 km. My temperature segments there are coarser than the standard layers, which is the next thing to refine.</p>
+    </section>
+
+    <section id="drag" aria-labelledby="drag-h">
+      <h2 id="drag-h">Drag coefficient vs. Mach</h2>
+      <figure>
+        <img src="img/cd_mach.png" width="862" height="586" alt="MATLAB plot of approximate Saturn V drag coefficient versus Mach number from 0 to 10. Cd rises from 0.50 at Mach 0 to a peak of 0.75 at Mach 1, marked as the sound barrier, then falls along a smooth power curve to about 0.24 at Mach 10. Data points sit on both fitted curves, labeled r2 = 0.994 subsonic and r2 = 0.999 supersonic.">
+        <figcaption>Two regressions split at Mach 1: a 4th-order polynomial below (R² = 0.994) and a power fit above (R² = 0.999).</figcaption>
+      </figure>
+      <div class="callout">
+        <p><strong>In progress:</strong> the final drag-force step. Next steps: fix the reference area (10.1 m is the diameter, so the radius is 5.05 m), and replace the simplified altitude-Mach pairing with a real ascent trajectory.</p>
+      </div>
+    </section>
+
+    <section id="code" aria-labelledby="code-h">
+      <h2 id="code-h">Code</h2>
+      <details>
+        <summary>Temp_Alt.m</summary>
+<pre><code>function Temp = Temp_Alt(h)
+
+% Temp_Alt(h): Gives temperature at any altitude (h) from 0m to 50000m
+%
+% h: Can be a scalar or vector (in meters)
+%
+% These temperature values are based off of the standard atmosphere model
+%
+% written by Michael Kenyon
+
+% Initialize output
+Temp = zeros(size(h));
+
+% region 1: 0 &lt;= h &lt;= 11000
+Temp((0 &lt;= h) &amp; (h &lt;= 11000)) = ...
+    (-0.0065) .* h((0 &lt;= h) &amp; (h &lt;= 11000)) + 288.15;
+
+% region 2: 11000 &lt; h &lt;= 20000
+Temp((11000 &lt; h) &amp; (h &lt;= 20000)) = 216.65;
+
+% region 3: 20000 &lt; h &lt;= 30000
+Temp((20000 &lt; h) &amp; (h &lt;= 30000)) = ...
+    (0.0010) .* h((20000 &lt; h) &amp; (h &lt;= 30000)) + 196.65;
+
+% region 4: 30000 &lt; h &lt;= 35000
+Temp((30000 &lt; h) &amp; (h &lt;= 35000)) = ...
+    (0.0020) .* h((30000 &lt; h) &amp; (h &lt;= 35000)) + 166.65;
+
+% region 5: 35000 &lt; h &lt;= 45000
+Temp((35000 &lt; h) &amp; (h &lt;= 45000)) = ...
+    (0.0028) .* h((35000 &lt; h) &amp; (h &lt;= 45000)) + 138.65;
+
+% region 6: 45000 &lt; h &lt;= 50000
+Temp((45000 &lt; h) &amp; (h &lt;= 50000)) = ...
+    (0.0012) .* h((45000 &lt; h) &amp; (h &lt;= 50000)) + 210.65;
+
+end</code></pre>
+      </details>
+      <details>
+        <summary>Press_Alt.m</summary>
+<pre><code>% Press_Alt
+% Pressure at any height
+% Michael Kenyon
+
+% Made with ODE and Interpolation, not with curve fitting.
+
+function Press = Press_Alt(h)
+
+    persistent P_fun
+
+    if isempty(P_fun)
+        % Constants
+        g = 9.80665;
+        R = 287.05;
+
+        % Temperature function
+        T = @(h) Temp_Alt(h);
+
+        % Differential equation
+        dPdh = @(h,P) -(P*g)/(R*T(h));
+
+        % Solve once
+        h_envelope = [0 50000];   % in meters
+        P0 = 101325;              % Pa at sea level
+        [h_sol, P_sol] = ode45(dPdh, h_envelope, P0);
+
+        % Create interpolation function
+        P_fun = @(h_query) interp1(h_sol, P_sol, h_query, 'pchip');
+    end
+
+    % Return pressure at requested altitude
+    Press = P_fun(h);
+
+end</code></pre>
+      </details>
+      <details>
+        <summary>Rho_Alt.m and StdAtm.m</summary>
+<pre><code>% Rho_Alt
+% Density at any height
+% Michael Kenyon
+
+function Density = Rho_Alt(h)
+
+R   = 287.05;          % J/(kg*K)
+P   = Press_Alt(h);    % Pa
+T   = Temp_Alt(h);     % K
+Density = (P./T) .* (1/R); % kg/m^3
+
+end
+
+function [T, P, rho] = StdAtm(h)
+
+T   = Temp_Alt(h);
+P   = Press_Alt(h);
+rho = Rho_Alt(h);
+
+end</code></pre>
+      </details>
+      <details>
+        <summary>Cd_Mach.m</summary>
+<pre><code>function Cd = Cd_Mach(M)
+
+% Cd_Mach(M): Gives coefficient of drag of a rocket as a function of mach
+% value (M)
+
+% M: Can be a scalar of vector
+
+% These Cd numbers are provided through air tunnel testing and using
+% regression I created an equation set to determine Cd at ANY mach value
+
+% written by Michael Kenyon
+
+% Initialize output
+Cd = zeros(size(M));
+
+% Subsonic: M &lt; 1
+Cd(M &lt; 1) = 0.8875 .* M(M &lt; 1) .^ 4 - 1.3712 .* M(M &lt; 1) .^ 3 + 0.8639 .* M(M &lt; 1) .^ 2 - 0.1269 .* M(M &lt; 1) + 0.5;
+
+% Supersonic: M &gt; 1
+Cd(M &gt; 1) = 0.5773 .* M(M &gt; 1) .^ -1.814 + 0.2329;
+
+% Exactly Mach 1
+Cd(M == 1) = 0.75;
+
+end</code></pre>
+      </details>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Michael Kenyon</span>
+    <span><a href="https://www.linkedin.com/in/michael-kenyon-347142382" rel="noopener">LinkedIn</a> · <a href="index.html">Back to portfolio</a></span>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Michael Kenyon — Aerospace Engineering Portfolio</title>
+<meta name="description" content="Portfolio of Michael Kenyon, Aerospace Engineering student at Syracuse University: models and simulations in MATLAB, Python and R.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2309090b'/%3E%3Ctext x='32' y='42' font-family='Arial,sans-serif' font-size='28' font-weight='700' fill='%23fff' text-anchor='middle'%3EMK%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html">Michael Kenyon</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="#projects">Projects</a></li>
+        <li><a href="#coursework">Coursework</a></li>
+        <li><a href="#skills">Skills</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="wrap">
+    <div class="intro">
+      <p class="eyebrow">Aerospace Engineering · Syracuse University</p>
+      <h1>Michael Kenyon</h1>
+      <p class="lede">Aerospace Engineering student at Syracuse University. I build models and simulations in MATLAB, Python and R, and I like turning physics into tools I can reuse.</p>
+      <div class="actions">
+        <a class="btn primary" href="#projects">View projects</a>
+        <a class="btn" href="https://www.linkedin.com/in/michael-kenyon-347142382" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg>
+          LinkedIn
+        </a>
+      </div>
+    </div>
+
+    <section id="projects" aria-labelledby="proj-h">
+      <div class="sec-head">
+        <h2 id="proj-h">Selected projects</h2>
+        <p class="sec-note">Personal projects, each with graphs, results and code on its own page.</p>
+      </div>
+      <ul class="featured">
+        <li class="card">
+          <div class="thumb"><img src="img/atmosphere.png" width="1047" height="519" alt="" loading="lazy"></div>
+          <div class="body">
+            <p class="kind">Personal · MATLAB</p>
+            <h3><a href="atmosphere.html">Standard Atmosphere → Saturn V Drag</a></h3>
+            <p>MATLAB functions that chain temperature, pressure (solved with <code>ode45</code>) and density into a Mach-dependent drag model. Pressure matches standard-atmosphere tables within 0.65% below 30 km.</p>
+            <div class="tags"><span class="tag">ode45</span><span class="tag">Regression</span><span class="tag wip">Drag step in progress</span></div>
+            <span class="go" aria-hidden="true">View project →</span>
+          </div>
+        </li>
+        <li class="card">
+          <div class="thumb"><img src="img/fmcw_4.png" width="865" height="734" alt="" loading="lazy" style="object-position: bottom center"></div>
+          <div class="body">
+            <p class="kind">Personal · MATLAB</p>
+            <h3><a href="radar.html">FMCW Radar Simulator, v1 → v4</a></h3>
+            <p>Built up over four versions, from single-target range to a range-Doppler map for moving targets. Range estimates are within 0.25%, including five targets in heavy noise.</p>
+            <div class="tags"><span class="tag">FFT</span><span class="tag">Signal processing</span><span class="tag wip">Velocity in progress</span></div>
+            <span class="go" aria-hidden="true">View project →</span>
+          </div>
+        </li>
+        <li class="card">
+          <div class="thumb"><img src="img/airfoil.webp" width="2000" height="1252" alt="" loading="lazy"></div>
+          <div class="body">
+            <p class="kind">Personal · Python</p>
+            <h3><a href="airfoil.html">Airfoil Panel Method</a></h3>
+            <p>A Hess-Smith panel solver for NACA 4-digit airfoils with a six-plot results dashboard. Currently debugging the lift sign convention.</p>
+            <div class="tags"><span class="tag">NumPy</span><span class="tag">SciPy</span><span class="tag wip">In progress</span></div>
+            <span class="go" aria-hidden="true">View project →</span>
+          </div>
+        </li>
+      </ul>
+      <p class="also"><strong>Also:</strong> Rocket Simulation v1, an early MATLAB time-integration model of altitude vs. time, as a starting point for adding the atmosphere and drag models.</p>
+    </section>
+
+    <section id="coursework" aria-labelledby="course-h">
+      <div class="sec-head">
+        <h2 id="course-h">Coursework</h2>
+        <p class="sec-note">Selected class work, described here rather than posted as code.</p>
+      </div>
+      <ul class="courses">
+        <li class="course">
+          <p class="kind">ECS 104 · MATLAB</p>
+          <h3>Numerical Methods for Engineering</h3>
+          <p>Optimization with <code>fmincon</code> and <code>fminunc</code>, linear systems, bisection and Newton's method, numerical integration and differentiation. Applied to lift-to-drag ratio in steady level flight, cantilever beam sizing and heat flow through a furnace wall.</p>
+        </li>
+        <li class="course">
+          <p class="kind">MAE 333 · R</p>
+          <h3>Data Analysis: 3D-Printer Settings</h3>
+          <p>Cleaned a 3D-printing dataset and used cross-tabulations, correlations and ggplot2 box and scatter plots to compare how material, infill and print settings affect elongation and surface roughness.</p>
+        </li>
+        <li class="course">
+          <p class="kind">ECS 101 · Team of 3</p>
+          <h3>Peregrinus Rover</h3>
+          <p>An autonomous sample-collecting rover with a claw (one fixed arm, one motor-driven) and tireless front wheels to reduce friction in turns. Planned the mission order and estimated the team's score.</p>
+        </li>
+        <li class="course">
+          <p class="kind">WRT 205 · Technical writing</p>
+          <h3>I-81 Viaduct Civic Issue Brief</h3>
+          <p>A brief and presentation on Syracuse's I-81 Community Grid decision, analyzing stakeholders, federal, state and local policy, and competing arguments.</p>
+        </li>
+      </ul>
+    </section>
+
+    <section id="skills" aria-labelledby="skills-h">
+      <div class="sec-head">
+        <h2 id="skills-h">Skills &amp; tools</h2>
+      </div>
+      <div class="tools">
+        <div><h3>MATLAB</h3><p>ode45, curve fitting, optimization, FFT and signal processing</p></div>
+        <div><h3>Python</h3><p>NumPy, SciPy, Matplotlib</p></div>
+        <div><h3>R</h3><p>Data cleaning, ggplot2, dplyr, statistics</p></div>
+        <div><h3>Communication</h3><p>Technical writing, team presentations, Excel</p></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Michael Kenyon</span>
+    <span><a href="https://www.linkedin.com/in/michael-kenyon-347142382" rel="noopener">LinkedIn</a> · <a href="#main">Back to top ↑</a></span>
+  </div>
+</footer>
+</body>
+</html>

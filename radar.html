@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FMCW Radar Simulator — Michael Kenyon</title>
+<meta name="description" content="FMCW radar simulator in MATLAB, built from single-target range to a range-Doppler map, by Michael Kenyon.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2309090b'/%3E%3Ctext x='32' y='42' font-family='Arial,sans-serif' font-size='28' font-weight='700' fill='%23fff' text-anchor='middle'%3EMK%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html">Michael Kenyon</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="index.html#projects">Projects</a></li>
+        <li><a href="#results">Results</a></li>
+        <li><a href="#versions">Versions</a></li>
+        <li><a href="#code">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="wrap">
+    <a class="back" href="index.html#projects">← Back to all projects</a>
+    <div class="intro page-intro">
+      <p class="eyebrow">Personal project · MATLAB</p>
+      <h1>FMCW Radar Simulator</h1>
+      <p class="lede">A frequency-modulated continuous-wave radar simulation built up over four versions: from finding one target's range, to several targets in noise, to a range-Doppler map for moving targets.</p>
+      <p><span class="tag">Signal processing</span><span class="tag">FFT</span><span class="tag">findpeaks</span><span class="tag wip">Velocity estimate in progress</span></p>
+    </div>
+
+    <section id="how" aria-labelledby="how-h">
+      <h2 id="how-h">How it works</h2>
+      <p class="sec-note">The radar sends a chirp whose frequency rises linearly: 200 MHz of bandwidth over 1 ms. The echo from a target comes back delayed. Mixing the sent and received signals gives a "beat" frequency that is proportional to the target's distance, so an FFT of the mixed signal turns into a range measurement: <code>d = c·f<sub>b</sub> / (2k)</code>, where <code>k</code> is the chirp slope.</p>
+    </section>
+
+    <section id="results" aria-labelledby="res-h">
+      <h2 id="res-h">Results</h2>
+      <p class="sec-note">Output from running the scripts in MATLAB. The noise is random, so exact numbers shift slightly from run to run.</p>
+      <div class="table-scroll">
+        <table class="results">
+          <caption class="visually-hidden">Range estimates by version</caption>
+          <thead><tr><th scope="col">Version</th><th scope="col">True range (m)</th><th scope="col">Estimated (m)</th><th scope="col">Error</th></tr></thead>
+          <tbody>
+            <tr><td>v1</td><td class="num">100</td><td class="num">99.75</td><td class="num">0.25%</td></tr>
+            <tr><td>v2 (1 dB SNR)</td><td class="num">100 / 200 / 300 / 400 / 500</td><td class="num">99.75 / 200.25 / 300.00 / 399.75 / 500.25</td><td class="num">≤ 0.25%</td></tr>
+            <tr><td>v4 (20 dB SNR)</td><td class="num">100 / 200</td><td class="num">99.75 / 200.25</td><td class="num">≤ 0.25%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="sec-note">Every range error is within one range bin. With 200 MHz of bandwidth the resolution is c/(2B) = 0.75 m.</p>
+    </section>
+
+    <section id="versions" aria-labelledby="ver-h">
+      <h2 id="ver-h">Versions</h2>
+
+      <h3><span class="ver">v1</span>Single target range</h3>
+      <p class="sec-note">One target at 100 m. A Hamming window is applied before the FFT, and the strongest peak gives the beat frequency.</p>
+
+      <h3><span class="ver">v2</span>Multiple targets with noise</h3>
+      <p class="sec-note">Five targets from 100 to 500 m, with heavy noise added (1 dB SNR). <code>findpeaks</code> picks out the five strongest peaks, and the script reports percent error for each.</p>
+      <figure>
+        <img src="img/fmcw_2.png" width="879" height="908" alt="Three stacked plots from MATLAB. Top: the clean mixed IF signal over 1 millisecond. Middle: the same signal with heavy noise at 1 dB SNR. Bottom: the FFT magnitude with five clear, evenly spaced peaks between about 130 and 670 kilohertz, one per target.">
+        <figcaption>v2 output: even with heavy noise, the FFT shows one clean peak per target.</figcaption>
+      </figure>
+
+      <h3><span class="ver" style="color:var(--warn)">v3</span>Adding velocity: didn't work</h3>
+      <p class="sec-note">My first attempt at sending many chirps to measure speed. Variables were used before they were defined and the mixing step ended up inside the wrong loop, so the script didn't run. I kept it as a record and rebuilt the logic in v4.</p>
+
+      <h3><span class="ver">v4</span>Range-Doppler map</h3>
+      <p class="sec-note">256 chirps at a 77 GHz carrier, the typical automotive radar band, with two targets moving at 10 and 20 m/s. A second FFT across chirps builds a range-Doppler map. Range detection works, and both targets show up at 100 m and 200 m on the map.</p>
+      <figure>
+        <img src="img/fmcw_4.png" width="865" height="734" alt="Four stacked plots from MATLAB. The clean and noisy IF signals, an FFT with two peaks near 133 and 267 kilohertz, and a range-Doppler color map from 0 to 500 meters showing vertical bright lines at 100 and 200 meters.">
+        <figcaption>v4 output: two targets detected in range. The range-Doppler map shows them at 100 m and 200 m.</figcaption>
+      </figure>
+      <div class="callout">
+        <p><strong>In progress:</strong> the velocity estimate isn't correct yet. Both targets come out near 0.19 m/s instead of 10 and 20 m/s. That's the next thing I'm fixing.</p>
+      </div>
+    </section>
+
+    <section id="code" aria-labelledby="code-h">
+      <h2 id="code-h">Code</h2>
+      <p class="sec-note">The latest version is below. Earlier versions are <code>fmcw_1.m</code> to <code>fmcw_3.m</code>.</p>
+      <details>
+        <summary>fmcw_4.m (MATLAB)</summary>
+<pre><code>% fmcw_4
+% Frequency Modulated Continuous Wave Radar
+% Multi-Target FMCW Range and Velocity Estimator
+% Michael Kenyon
+
+%% Goals
+res     = 1     ; % Resolution (meters)
+max_rng = 37500 ; % Maximum Range (meters)
+
+%% Defining Physical Parameters
+c       = 3.00e+08 ; % Speed of Light (meters/second)
+B       = 200e+06  ; % Bandwidth (Hertz)
+T       = 1e-03    ; % Chirp Time (seconds)
+k       = B/T      ; % Chirp Slope (Hertz/second)
+f0      = 1.0e+06  ; % Initial Frequency (Hertz)
+fc      = 77e+09   ; % Carrier Frequency (77 GHz)
+n_chirp = 256      ; % Number of Chirps
+PRI     = 20e-06   ; % 20 microseconds
+
+%% Create a Time Vector
+fs = 1e+08    ;
+dt = 1/fs     ;
+t  = 0:dt:T-dt ; % Fixed: no off-by-one
+N  = length(t) ; % Defined here so it's available everywhere
+
+%% Transmitted Chirp
+phi = 2.*pi.*(f0.*t + 0.5.*k.*t.^2) ;
+s   = cos(phi)                      ;
+
+%% Targets
+targets    = [100, 200] ; % Starting distances (meters)
+velocities = [10, 20]   ; % Velocities (m/s)
+
+%% Noise Parameters
+snr_db     = 20             ;
+snr_linear = 10^(snr_db/10) ;
+
+%% Chirp Loop
+range_doppler = zeros(n_chirp, floor(N/2)+1) ;
+
+for chirp = 1:n_chirp
+    r = zeros(size(t)) ;
+
+    for i = 1:length(targets)
+        d_current = targets(i) + velocities(i)*(chirp-1)*PRI            ;
+        td_i      = 2*d_current/c                                       ;
+        t_delay_i = t - td_i                                            ;
+        r = r + cos(2*pi*fc*(2*d_current/c) + ...
+                2*pi*(f0*t_delay_i + 0.5*k*t_delay_i.^2))              ;
+    end
+
+    x       = s .* r                                   ; % Mix
+    x_noisy = x + (1/snr_linear)*randn(size(x))        ; % Add noise
+    W       = hamming(N)'                              ; % Window
+    X       = fft(x_noisy .* W)                        ; % FFT
+    range_doppler(chirp, :) = abs(X(1:floor(N/2)+1))/N ; % Store
+end
+
+%% Frequency and Range Axes
+f          = (0:floor(N/2)) * (fs/N)    ;
+range_axis = (0:floor(N/2)) * (c/(2*B)) ;
+
+%% Range Profile
+range_profile = mean(range_doppler, 1) ;
+
+%% Extract Distances
+n_targets = length(targets)                                                     ;
+[~, idx]  = findpeaks(range_profile, 'SortStr', 'descend', 'NPeaks', n_targets) ;
+idx       = sort(idx)                                                           ;
+fb_all    = f(idx)                                                              ;
+d_all     = c*fb_all/(2*k)
+
+Percent_Error = abs(d_all - targets)./targets*100
+
+%% Doppler FFT
+doppler_fft = fft(range_doppler, n_chirp, 1)     ;
+doppler_fft = fftshift(doppler_fft, 1)           ;
+RD_map      = abs(doppler_fft)                   ;
+v_axis      = linspace(-1/(2*PRI), 1/(2*PRI), n_chirp) * (c/(2*fc)) ;
+
+%% Extract Velocity From Range-Doppler Map
+RD_col = zeros(n_chirp, n_targets)  ;
+
+for i = 1:n_targets
+    RD_col(:,i) = RD_map(:, idx(i)) ; % Extract column at each target range bin
+end
+
+[~, v_idx] = max(RD_col)            ; % Find peak row for each target
+v_all      = v_axis(v_idx)            % Convert index directly to velocity
+
+V_Percent_Error = abs(v_all - velocities)./abs(velocities)*100
+
+%% Plots
+x_last = x ; x_noisy_last = x_noisy ; % Save last chirp for plotting
+
+figure;
+
+subplot(4,1,1)
+plot(t*1e3, x_last)
+xlabel('Time (ms)') ; ylabel('Amplitude')
+title('Clean IF Signal') ; grid on
+
+subplot(4,1,2)
+plot(t*1e3, x_noisy_last)
+xlabel('Time (ms)') ; ylabel('Amplitude')
+title(sprintf('Noisy IF Signal - SNR = %d dB', snr_db)) ; grid on
+
+subplot(4,1,3)
+plot(f./1e3, range_profile)
+xlim([0, f(max(idx))/1e3 * 1.5])
+xlabel('Frequency (kHz)') ; ylabel('Magnitude')
+title(sprintf('FFT - %d Targets Detected', n_targets)) ; grid on
+
+subplot(4,1,4)
+imagesc(range_axis, v_axis, 20*log10(RD_map./max(RD_map(:))))
+xlim([0 500])
+xlabel('Range (m)') ; ylabel('Velocity (m/s)')
+title('Range-Doppler Map') ; colorbar</code></pre>
+      </details>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Michael Kenyon</span>
+    <span><a href="https://www.linkedin.com/in/michael-kenyon-347142382" rel="noopener">LinkedIn</a> · <a href="index.html">Back to portfolio</a></span>
+  </div>
+</footer>
+</body>
+</html>

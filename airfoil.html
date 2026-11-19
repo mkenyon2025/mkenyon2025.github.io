@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Airfoil Panel Method — Michael Kenyon</title>
+<meta name="description" content="A Python Hess-Smith panel method for NACA 4-digit airfoils, by Michael Kenyon. Work in progress.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2309090b'/%3E%3Ctext x='32' y='42' font-family='Arial,sans-serif' font-size='28' font-weight='700' fill='%23fff' text-anchor='middle'%3EMK%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html">Michael Kenyon</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="index.html#projects">Projects</a></li>
+        <li><a href="#results">Results</a></li>
+        <li><a href="#status">Status</a></li>
+        <li><a href="#code">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="wrap">
+    <a class="back" href="index.html#projects">← Back to all projects</a>
+    <div class="intro page-intro">
+      <p class="eyebrow">Personal project · Python</p>
+      <h1>Airfoil Panel Method</h1>
+      <p class="lede">A 2D potential-flow solver for NACA 4-digit airfoils. It generates the airfoil shape, solves for the flow around it with a panel method and plots pressure, surface velocity and lift on a single dashboard.</p>
+      <p><span class="tag">NumPy</span><span class="tag">SciPy</span><span class="tag">Matplotlib</span><span class="tag wip">In progress</span></p>
+    </div>
+
+    <section aria-labelledby="how-h">
+      <h2 id="how-h">How it works</h2>
+      <ol class="pipeline">
+        <li><h3>Geometry</h3><p>Builds NACA 4-digit coordinates from the thickness and camber equations, using cosine spacing so panels cluster at the leading and trailing edges, where the flow changes fastest.</p></li>
+        <li><h3>Panel method</h3><p>Splits the surface into 120 panels with constant-strength sources plus a vortex (Hess-Smith), sets up the flow-tangency equations and enforces the Kutta condition at the trailing edge. <code>scipy.linalg.solve</code> solves the system.</p></li>
+        <li><h3>Outputs</h3><p>Surface velocity and pressure coefficient (Cp) on each panel, lift coefficient from integrating pressure, and a sweep from −8° to 16° for the lift and drag polars.</p></li>
+      </ol>
+    </section>
+
+    <section id="results" aria-labelledby="res-h">
+      <h2 id="res-h">Current output</h2>
+      <figure>
+        <img src="img/airfoil.webp" width="2000" height="1252" alt="Six-panel dark-themed dashboard for a NACA 2412 airfoil at 5 degrees angle of attack: airfoil geometry with camber line, pressure coefficient distribution, surface tangential velocity, lift polar of Cl versus alpha, drag polar of Cl versus Cd, and a table of simulation results. The lift values shown are negative.">
+        <figcaption>NACA 2412 at α = 5°, 120 panels. The layout and plotting work, but the lift values aren't correct yet (see below).</figcaption>
+      </figure>
+    </section>
+
+    <section id="status" aria-labelledby="status-h">
+      <h2 id="status-h">Status and next steps</h2>
+      <div class="callout">
+        <p><strong>Known issue:</strong> lift comes out with the wrong sign. The solver reports Cl ≈ −1.75 at α = 5°, and lift decreases as angle of attack increases. Thin-airfoil theory predicts about +0.8 for a NACA 2412 at 5°, with a slope near 2π per radian.</p>
+      </div>
+      <ul>
+        <li>Debug the sign convention in the influence coefficients and the Cp integration until Cl vs. α matches thin-airfoil theory.</li>
+        <li>Compare Cp and Cl against a reference solver.</li>
+        <li>Replace the flat-plate drag estimate with a boundary-layer method.</li>
+      </ul>
+    </section>
+
+    <section id="code" aria-labelledby="code-h">
+      <h2 id="code-h">Code</h2>
+      <details>
+        <summary>main.py (Python)</summary>
+<pre><code>"""
+2D Airfoil Panel Method CFD Simulation
+Author: Michael Kenyon
+Description: Hess-Smith panel method for inviscid 2D flow over NACA 4-series airfoils.
+             Computes pressure distribution and lift coefficient (Cl). Drag coefficient (Cd)
+             is a simple turbulent flat-plate skin-friction estimate.
+             Work in progress: the lift sign is currently incorrect and results are not
+             yet validated against a reference solver.
+
+Method:
+    - NACA 4-digit geometry generation
+    - Hess-Smith constant-strength source + vortex panel method
+    - Kutta condition enforced at trailing edge
+    - Turbulent flat-plate skin friction estimate for drag
+    - Cp, Cl, Cd, lift/drag polar sweep
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from matplotlib.patches import FancyArrowPatch
+from scipy.linalg import solve
+import warnings
+warnings.filterwarnings('ignore')
+
+# ─────────────────────────────────────────────────
+# NACA 4-DIGIT GEOMETRY
+# ─────────────────────────────────────────────────
+def naca4_geometry(designation: str, n_panels: int = 100) -&gt; tuple:
+    """Generate NACA 4-digit airfoil coordinates (cosine spacing)."""
+    m = int(designation[0]) / 100.0   # max camber
+    p = int(designation[1]) / 10.0    # location of max camber
+    t = int(designation[2:]) / 100.0  # thickness
+
+    # Cosine spacing for better leading/trailing edge resolution
+    beta = np.linspace(0, np.pi, n_panels // 2 + 1)
+    x = 0.5 * (1 - np.cos(beta))
+
+    # Thickness distribution
+    yt = 5 * t * (0.2969*np.sqrt(x) - 0.1260*x - 0.3516*x**2
+                  + 0.2843*x**3 - 0.1015*x**4)
+
+    # Camber line
+    yc = np.where(x &lt; p,
+                  m/p**2 * (2*p*x - x**2),
+                  m/(1-p)**2 * (1 - 2*p + 2*p*x - x**2))
+
+    dyc_dx = np.where(x &lt; p,
+                      2*m/p**2 * (p - x),
+                      2*m/(1-p)**2 * (p - x))
+
+    theta = np.arctan(dyc_dx)
+
+    # Upper and lower surfaces
+    xu = x  - yt * np.sin(theta)
+    yu = yc + yt * np.cos(theta)
+    xl = x  + yt * np.sin(theta)
+    yl = yc - yt * np.cos(theta)
+
+    # Combine into closed loop (upper TE→LE, lower LE→TE)
+    x_coords = np.concatenate([xu[::-1], xl[1:]])
+    y_coords = np.concatenate([yu[::-1], yl[1:]])
+    return x_coords, y_coords, x, yc
+
+
+# ─────────────────────────────────────────────────
+# HESS-SMITH PANEL METHOD
+# ─────────────────────────────────────────────────
+def build_panels(x_coords, y_coords):
+    """Compute panel geometry from nodal coordinates."""
+    n = len(x_coords) - 1
+    xm = 0.5 * (x_coords[:-1] + x_coords[1:])   # midpoints
+    ym = 0.5 * (y_coords[:-1] + y_coords[1:])
+    dx = x_coords[1:] - x_coords[:-1]
+    dy = y_coords[1:] - y_coords[:-1]
+    lengths = np.sqrt(dx**2 + dy**2)
+    sin_phi = dy / lengths
+    cos_phi = dx / lengths
+    return n, xm, ym, sin_phi, cos_phi, lengths
+
+
+def influence_coefficients(xm, ym, x_coords, y_coords, sin_phi, cos_phi, n):
+    """Compute normal velocity influence matrix."""
+    A = np.zeros((n + 1, n + 1))
+
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                A[i, j] = 0.5   # self-influence
+                continue
+            # Transform to panel j local coords
+            dx1 = xm[i] - x_coords[j]
+            dy1 = ym[i] - y_coords[j]
+            dx2 = xm[i] - x_coords[j+1]
+            dy2 = ym[i] - y_coords[j+1]
+
+            r1 = np.sqrt(dx1**2 + dy1**2)
+            r2 = np.sqrt(dx2**2 + dy2**2)
+
+            # Local coords
+            x1l =  dx1*cos_phi[j] + dy1*sin_phi[j]
+            x2l =  dx2*cos_phi[j] + dy2*sin_phi[j]
+            y1l = -dx1*sin_phi[j] + dy1*cos_phi[j]
+
+            if abs(y1l) &lt; 1e-10:
+                beta_angle = 0.0
+            else:
+                beta_angle = np.arctan2(x2l - x1l, y1l) - np.arctan2(x1l, y1l)
+                if beta_angle &gt; np.pi:  beta_angle -= 2*np.pi
+                if beta_angle &lt; -np.pi: beta_angle += 2*np.pi
+
+            log_r = 0.5 * np.log((dx2**2 + dy2**2) / (dx1**2 + dy1**2 + 1e-30))
+
+            # Source (col j) influence on panel i normal velocity
+            source_n = (-(x1l - x2l)*beta_angle + y1l*log_r) / (2*np.pi)
+            vortex_n =  (y1l*beta_angle + (x1l - x2l)*log_r) / (2*np.pi)
+
+            A[i, j] += source_n * (-sin_phi[j]*sin_phi[i] + cos_phi[j]*cos_phi[i]) \
+                     - source_n * ( cos_phi[j]*cos_phi[i] + sin_phi[j]*sin_phi[i])
+
+            # Simpler direct formulation
+            cn1 = -beta_angle / (2*np.pi)
+            cn2 =  log_r / (2*np.pi)
+            A[i, j] = cn1 * (-sin_phi[i]*sin_phi[j] + cos_phi[i]*cos_phi[j]) \
+                     + cn2 * ( sin_phi[i]*cos_phi[j] + cos_phi[i]*sin_phi[j])
+            A[i, n] += cn1 * ( sin_phi[i]*cos_phi[j] + cos_phi[i]*sin_phi[j]) \
+                      - cn2 * (-sin_phi[i]*sin_phi[j] + cos_phi[i]*cos_phi[j])
+
+    # Kutta condition: γ_1 + γ_n = 0 (last row)
+    A[n, 0]   =  1.0
+    A[n, n-1] =  1.0
+    A[n, n]   =  0.0
+    return A
+
+
+def solve_panel_method(designation: str, alpha_deg: float, n_panels: int = 120):
+    """
+    Run panel method for a NACA airfoil at given angle of attack.
+    Returns Cp distribution and integrated Cl.
+    """
+    alpha = np.radians(alpha_deg)
+    x_coords, y_coords, _, _ = naca4_geometry(designation, n_panels)
+    n, xm, ym, sin_phi, cos_phi, lengths = build_panels(x_coords, y_coords)
+
+    # RHS: freestream normal velocity
+    rhs = np.zeros(n + 1)
+    for i in range(n):
+        rhs[i] = np.sin(alpha - np.arctan2(sin_phi[i], cos_phi[i]))
+    rhs[n] = 0.0   # Kutta
+
+    # Build and solve system (simplified Hess-Smith)
+    A = np.zeros((n + 1, n + 1))
+    for i in range(n):
+        angle_i = np.arctan2(sin_phi[i], cos_phi[i])
+        for j in range(n):
+            angle_j = np.arctan2(sin_phi[j], cos_phi[j])
+            dx1 = xm[i] - x_coords[j]
+            dy1 = ym[i] - y_coords[j]
+            dx2 = xm[i] - x_coords[j+1]
+            dy2 = ym[i] - y_coords[j+1]
+            r1sq = dx1**2 + dy1**2 + 1e-30
+            r2sq = dx2**2 + dy2**2 + 1e-30
+
+            # Local frame
+            c, s = cos_phi[j], sin_phi[j]
+            x1l =  c*dx1 + s*dy1
+            x2l =  c*dx2 + s*dy2
+            y1l = -s*dx1 + c*dy1
+
+            if abs(y1l) &lt; 1e-12:
+                b = 0.0
+            else:
+                b = (np.arctan2(y1l, x2l) - np.arctan2(y1l, x1l))
+
+            lr = 0.5 * np.log(r2sq / r1sq)
+            ci = np.cos(angle_i); si2 = np.sin(angle_i)
+            cj = cos_phi[j];      sj  = sin_phi[j]
+
+            # Normal influence coefficients
+            cn1 = -b/(2*np.pi)
+            cn2 =  lr/(2*np.pi)
+            A[i, j] += cn1*(-si2*sj + ci*cj) + cn2*(si2*cj + ci*sj)
+            A[i, n] += cn1*( si2*cj + ci*sj) - cn2*(-si2*sj + ci*cj)
+
+        A[i, i] += 0.5
+
+    A[n, 0]   =  1.0
+    A[n, n-1] =  1.0
+    A[n, n]   =  0.0
+    rhs[n]    =  0.0
+
+    sol = solve(A, rhs)
+    sources = sol[:n]
+    gamma   = sol[n]
+
+    # Tangential velocity &amp; Cp
+    Vt = np.zeros(n)
+    for i in range(n):
+        angle_i = np.arctan2(sin_phi[i], cos_phi[i])
+        Vt[i] = np.cos(alpha - angle_i)
+        for j in range(n):
+            angle_j = np.arctan2(sin_phi[j], cos_phi[j])
+            dx1 = xm[i] - x_coords[j]
+            dy1 = ym[i] - y_coords[j]
+            dx2 = xm[i] - x_coords[j+1]
+            dy2 = ym[i] - y_coords[j+1]
+            r1sq = dx1**2 + dy1**2 + 1e-30
+            r2sq = dx2**2 + dy2**2 + 1e-30
+            c, s = cos_phi[j], sin_phi[j]
+            x1l =  c*dx1 + s*dy1
+            x2l =  c*dx2 + s*dy2
+            y1l = -s*dx1 + c*dy1
+            if abs(y1l) &lt; 1e-12:
+                b = 0.0
+            else:
+                b = np.arctan2(y1l, x2l) - np.arctan2(y1l, x1l)
+            lr = 0.5 * np.log(r2sq / r1sq)
+            ci = np.cos(angle_i); si2 = np.sin(angle_i)
+            cj = cos_phi[j];      sj  = sin_phi[j]
+            ct1 = lr/(2*np.pi)
+            ct2 = b/(2*np.pi)
+            Vt[i] += sources[j]*(ct1*(-si2*sj + ci*cj) - ct2*(si2*cj + ci*sj)) \
+                   + gamma    *(ct1*( si2*cj + ci*sj) + ct2*(-si2*sj + ci*cj))
+
+    Cp = 1.0 - Vt**2
+
+    # Lift coefficient via pressure integration
+    Cl = 0.0
+    for i in range(n):
+        angle_i = np.arctan2(sin_phi[i], cos_phi[i])
+        Cl += -Cp[i] * lengths[i] * np.cos(angle_i)
+    Cl *= 2.0  # c=1 chord
+
+    return xm, ym, Cp, Cl, x_coords, y_coords, Vt, lengths, sin_phi, cos_phi
+
+
+def polar_sweep(designation: str, alphas: np.ndarray, n_panels: int = 120):
+    """Compute Cl and estimated Cd over a range of angles of attack."""
+    Cls, Cds = [], []
+    for a in alphas:
+        xm, ym, Cp, Cl, *_ = solve_panel_method(designation, a, n_panels)
+        # Simplified skin friction Cd estimate (turbulent flat plate analogy)
+        Re = 1e6
+        Cd = 0.074 / Re**0.2 * (1 + 0.15 * a**2 / 100)
+        Cls.append(Cl)
+        Cds.append(Cd)
+    return np.array(Cls), np.array(Cds)
+
+
+# ─────────────────────────────────────────────────
+# PLOTTING
+# ─────────────────────────────────────────────────
+def make_figure(designation: str = "2412", alpha_deg: float = 5.0):
+    xm, ym, Cp, Cl, x_coords, y_coords, Vt, lengths, sin_phi, cos_phi = \
+        solve_panel_method(designation, alpha_deg)
+
+    x_geo, y_geo, x_cam, y_cam = naca4_geometry(designation, 200)
+    alphas = np.linspace(-8, 16, 25)
+    Cls, Cds = polar_sweep(designation, alphas)
+
+    # ── Style ──────────────────────────────────────
+    BG      = "#0d1117"
+    PANEL   = "#161b22"
+    ACCENT  = "#58a6ff"
+    GREEN   = "#3fb950"
+    ORANGE  = "#f78166"
+    MUTED   = "#8b949e"
+    WHITE   = "#e6edf3"
+    GRID    = "#21262d"
+
+    plt.rcParams.update({
+        'figure.facecolor': BG, 'axes.facecolor': PANEL,
+        'axes.edgecolor': GRID, 'axes.labelcolor': WHITE,
+        'xtick.color': MUTED, 'ytick.color': MUTED,
+        'text.color': WHITE, 'grid.color': GRID,
+        'grid.linestyle': '--', 'grid.alpha': 0.6,
+        'font.family': 'monospace', 'font.size': 9,
+    })
+
+    fig = plt.figure(figsize=(16, 10), facecolor=BG)
+    fig.suptitle(
+        f"NACA {designation} Airfoil  ·  Panel Method CFD  ·  α = {alpha_deg}°  ·  Cl = {Cl:.3f}",
+        fontsize=14, color=WHITE, fontweight='bold', y=0.97,
+        fontfamily='monospace'
+    )
+
+    gs = gridspec.GridSpec(2, 3, figure=fig, hspace=0.42, wspace=0.38,
+                           left=0.07, right=0.97, top=0.92, bottom=0.08)
+
+    # ── 1. Airfoil geometry ─────────────────────────
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax1.fill(x_geo, y_geo, color=ACCENT, alpha=0.15)
+    ax1.plot(x_geo, y_geo, color=ACCENT, lw=1.5, label='Surface')
+    ax1.plot(x_cam, y_cam, color=ORANGE, lw=1, ls='--', alpha=0.7, label='Camber line')
+    ax1.axhline(0, color=MUTED, lw=0.5, alpha=0.4)
+    # Flow arrow
+    arr_y = -0.18
+    ax1.annotate('', xy=(0.15, arr_y), xytext=(-0.08, arr_y),
+                 arrowprops=dict(arrowstyle='-&gt;', color=GREEN, lw=1.5))
+    ax1.text(0.03, arr_y - 0.04, f'V∞, α={alpha_deg}°', color=GREEN, fontsize=7)
+    ax1.set_xlim(-0.1, 1.1); ax1.set_ylim(-0.25, 0.35)
+    ax1.set_aspect('equal'); ax1.grid(True)
+    ax1.set_title(f'NACA {designation} Geometry', color=WHITE, fontsize=9, pad=6)
+    ax1.set_xlabel('x/c'); ax1.set_ylabel('y/c')
+    ax1.legend(fontsize=7, facecolor=PANEL, edgecolor=GRID, labelcolor=WHITE)
+
+    # ── 2. Cp distribution ─────────────────────────
+    ax2 = fig.add_subplot(gs[0, 1])
+    # Split upper/lower (upper panels have ym &gt; camber line)
+    n = len(xm)
+    half = n // 2
+    upper_idx = list(range(half))
+    lower_idx = list(range(half, n))
+
+    ax2.plot(xm[upper_idx], -Cp[upper_idx], color=ACCENT, lw=1.5, label='Upper surface')
+    ax2.plot(xm[lower_idx], -Cp[lower_idx], color=ORANGE, lw=1.5, label='Lower surface')
+    ax2.fill_between(xm[upper_idx], -Cp[upper_idx], 0, alpha=0.12, color=ACCENT)
+    ax2.fill_between(xm[lower_idx], -Cp[lower_idx], 0, alpha=0.12, color=ORANGE)
+    ax2.axhline(0, color=MUTED, lw=0.6, alpha=0.5)
+    stag_idx = np.argmax(Cp)
+    ax2.axvline(xm[stag_idx], color=GREEN, lw=0.8, ls=':', alpha=0.7)
+    ax2.text(xm[stag_idx]+0.01, ax2.get_ylim()[0] if ax2.get_ylim()[0] != 0 else -0.3,
+             'stag.', color=GREEN, fontsize=6)
+    ax2.set_xlabel('x/c'); ax2.set_ylabel('−Cp')
+    ax2.set_title('Pressure Coefficient Distribution', color=WHITE, fontsize=9, pad=6)
+    ax2.legend(fontsize=7, facecolor=PANEL, edgecolor=GRID, labelcolor=WHITE)
+    ax2.grid(True)
+    ax2.invert_yaxis()
+
+    # ── 3. Surface velocity ─────────────────────────
+    ax3 = fig.add_subplot(gs[0, 2])
+    ax3.plot(xm[upper_idx], Vt[upper_idx], color=ACCENT, lw=1.5, label='Upper')
+    ax3.plot(xm[lower_idx], Vt[lower_idx], color=ORANGE, lw=1.5, label='Lower')
+    ax3.axhline(1.0, color=MUTED, lw=0.6, ls='--', alpha=0.5, label='V∞')
+    ax3.fill_between(xm[upper_idx], Vt[upper_idx], 1.0, alpha=0.1, color=ACCENT)
+    ax3.set_xlabel('x/c'); ax3.set_ylabel('Vt / V∞')
+    ax3.set_title('Surface Tangential Velocity', color=WHITE, fontsize=9, pad=6)
+    ax3.legend(fontsize=7, facecolor=PANEL, edgecolor=GRID, labelcolor=WHITE)
+    ax3.grid(True)
+
+    # ── 4. Cl vs alpha ─────────────────────────────
+    ax4 = fig.add_subplot(gs[1, 0])
+    ax4.plot(alphas, Cls, color=ACCENT, lw=2)
+    ax4.scatter([alpha_deg], [Cl], color=GREEN, s=60, zorder=5,
+                label=f'α={alpha_deg}°, Cl={Cl:.3f}')
+    ax4.axhline(0, color=MUTED, lw=0.5, alpha=0.4)
+    ax4.axvline(0, color=MUTED, lw=0.5, alpha=0.4)
+    # Thin airfoil theory slope line
+    a0 = 2 * np.pi * np.radians(1)
+    alpha0_approx = -np.radians(int(designation[0]) * 2)
+    Cl_theory = 2*np.pi*(np.radians(alphas) - alpha0_approx)
+    ax4.plot(alphas, Cl_theory, color=MUTED, lw=1, ls=':', alpha=0.6, label='2πα theory')
+    ax4.set_xlabel('α (deg)'); ax4.set_ylabel('Cl')
+    ax4.set_title('Lift Polar (Cl vs α)', color=WHITE, fontsize=9, pad=6)
+    ax4.legend(fontsize=7, facecolor=PANEL, edgecolor=GRID, labelcolor=WHITE)
+    ax4.grid(True)
+
+    # ── 5. Cl/Cd polar ─────────────────────────────
+    ax5 = fig.add_subplot(gs[1, 1])
+    LoD = Cls / (Cds + 1e-10)
+    best_idx = np.argmax(LoD)
+    ax5.plot(Cds, Cls, color=ORANGE, lw=2)
+    ax5.scatter(Cds[best_idx], Cls[best_idx], color=GREEN, s=60, zorder=5,
+                label=f'Best L/D={LoD[best_idx]:.1f}\nα={alphas[best_idx]:.1f}°')
+    ax5.set_xlabel('Cd'); ax5.set_ylabel('Cl')
+    ax5.set_title('Drag Polar (Cl vs Cd)', color=WHITE, fontsize=9, pad=6)
+    ax5.legend(fontsize=7, facecolor=PANEL, edgecolor=GRID, labelcolor=WHITE)
+    ax5.grid(True)
+
+    # ── 6. Summary stats ────────────────────────────
+    ax6 = fig.add_subplot(gs[1, 2])
+    ax6.axis('off')
+    alpha0_idx = np.argmin(np.abs(Cls))
+    Cl_max_idx = np.argmax(Cls)
+    stats = [
+        ("Airfoil",         f"NACA {designation}"),
+        ("Method",          "Hess-Smith Panel"),
+        ("Panels",          f"{len(xm)}"),
+        ("α (current)",     f"{alpha_deg}°"),
+        ("Cl",              f"{Cl:.4f}"),
+        ("Cd (est.)",       f"{Cds[np.argmin(np.abs(alphas - alpha_deg))]:.5f}"),
+        ("L/D",             f"{Cl / Cds[np.argmin(np.abs(alphas - alpha_deg))]:.1f}"),
+        ("Best L/D",        f"{LoD[best_idx]:.1f}  @ α={alphas[best_idx]:.1f}°"),
+        ("Cl_max",          f"{Cls[Cl_max_idx]:.3f} @ α={alphas[Cl_max_idx]:.1f}°"),
+        ("α₀ (zero-lift)",  f"≈{alphas[alpha0_idx]:.1f}°"),
+        ("dCl/dα",          f"≈{(Cls[-1]-Cls[0])/(alphas[-1]-alphas[0]):.4f} /deg"),
+    ]
+    y_pos = 0.96
+    ax6.text(0.05, y_pos, "── SIMULATION RESULTS ──",
+             color=ACCENT, fontsize=8, fontweight='bold', transform=ax6.transAxes)
+    y_pos -= 0.08
+    for label, val in stats:
+        ax6.text(0.05, y_pos, f"{label:&lt;18}", color=MUTED,
+                 fontsize=8, transform=ax6.transAxes, fontfamily='monospace')
+        ax6.text(0.52, y_pos, val, color=WHITE,
+                 fontsize=8, transform=ax6.transAxes, fontfamily='monospace')
+        y_pos -= 0.08
+
+    ax6.text(0.05, 0.03,
+             "Panel method: inviscid potential flow\nCd via turbulent BL skin friction analogy",
+             color=MUTED, fontsize=6.5, transform=ax6.transAxes, style='italic')
+
+    plt.savefig('naca_cfd_results.png', dpi=150, bbox_inches='tight',
+                facecolor=BG, edgecolor='none')
+    print("Figure saved.")
+    return fig
+
+
+if __name__ == "__main__":
+    make_figure("2412", alpha_deg=5.0)
+    print("Done.")</code></pre>
+      </details>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Michael Kenyon</span>
+    <span><a href="https://www.linkedin.com/in/michael-kenyon-347142382" rel="noopener">LinkedIn</a> · <a href="index.html">Back to portfolio</a></span>
+  </div>
+</footer>
+</body>
+</html>
